@@ -1,0 +1,79 @@
+#include <iostream>
+#include "opencv2/opencv.hpp"
+#include "opencv2/ml.hpp"
+using namespace cv;
+using namespace ml;
+
+//使用SVM进行分类
+int main()  
+{  
+    //训练数据 
+    const int sampleSum = 12;
+    int labels[sampleSum] = {
+   0,0,1,1,1,1,1,2,2,3,3,3};  
+    float trainData[sampleSum][2] = {
+   {
+   79,50},{
+   74,175},{
+   173,416},{
+   133,216},{
+   222,333},{
+   192,283},{
+   118,400},{
+   278,156},{
+   394,117},{
+   340,296},{
+   351,437},{
+   479,218}};  
+    Mat trainDataMat(sampleSum,2,CV_32FC1,trainData);
+    Mat labelsMat(sampleSum,1,CV_32SC1,labels);  
+    //建立模型 
+    Ptr<SVM> model = SVM::create();  
+    model->setType(SVM::C_SVC);  
+    model->setKernel(SVM::POLY);
+    model->setDegree(1.0);
+    model->setTermCriteria(TermCriteria(TermCriteria::MAX_ITER,100,1e-6));  
+    model->train(trainDataMat,ROW_SAMPLE,labelsMat);  
+
+    //对每个像素点进行分类
+    Mat showImg = Mat::zeros(512, 512, CV_8UC3);  
+    for (int i=0; i<showImg.rows; i++)
+    {
+        for (int j=0; j<showImg.cols; j++)  
+        {  
+            Mat sampleMat = (Mat_<float>(1, 2) << j, i);  
+            float response = model->predict(sampleMat);
+            for (int label = 0; label < sampleSum; label++)
+            {
+                if (response == labels[label])
+                {
+                    RNG rng1(labels[label]);
+                    showImg.at<Vec3b>(i, j) = Vec3b(rng1.uniform(0,255),rng1.uniform(0,255),rng1.uniform(0,255));
+                }
+                RNG rng2(3-labels[label]);
+                circle(showImg,Point(trainData[label][0],trainData[label][1]),8,Scalar(rng2.uniform(0,255),rng2.uniform(0,255),rng2.uniform(0,255)),-1,-1);  
+            }
+        }
+    }
+    //绘制出支持向量
+    // Mat supportVectors = model->getSupportVectors();  
+    // for (int i = 0; i < supportVectors.rows; ++i)  
+    // {  
+    //     const float* sv = supportVectors.ptr<float>(i);  
+    //     circle(showImg,Point(sv[0],sv[1]),8,Scalar(0,255,0),2,8);
+    // }  
+    //测试
+    Mat testLabels;  
+    float testData[3][2] = {
+   {
+   456,123},{
+   258,147},{
+   58,111}};
+   
+    Mat testDataMat(3,2,CV_32FC1,testData);
+    model->predict(testDataMat, testLabels);
+    std::cout <<"testLabels：\n"<<testLabels<<std::endl;
+    imshow("output", showImg);
+    waitKey();
+    return 0;
+} 
